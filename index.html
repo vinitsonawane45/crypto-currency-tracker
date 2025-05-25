@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚀 CryptoVerse Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.2/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300 font-sans">
+  <!-- Sidebar -->
+  <div class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-lg transform -translate-x-full md:translate-x-0 transition-transform duration-300 z-50" id="sidebar">
+    <div class="p-4 flex items-center gap-2 border-b border-gray-200 dark:border-gray-700">
+      <i class="fas fa-coins text-2xl text-indigo-600 dark:text-indigo-400"></i>
+      <h1 class="text-xl font-bold">CryptoVerse</h1>
+    </div>
+    <nav class="p-4 space-y-2">
+      <a href="#dashboard-tab" class="nav-link flex items-center gap-2 p-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-tab="dashboard-tab">
+        <i class="fas fa-chart-line"></i> Dashboard
+      </a>
+      <a href="#portfolio-tab" class="nav-link flex items-center gap-2 p-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-tab="portfolio-tab">
+        <i class="fas fa-wallet"></i> Portfolio
+      </a>
+      <a href="#compare-tab" class="nav-link flex items-center gap-2 p-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-tab="compare-tab">
+        <i class="fas fa-balance-scale"></i> Compare
+      </a>
+      <a href="#alerts-tab" class="nav-link flex items-center gap-2 p-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-tab="alerts-tab">
+        <i class="fas fa-bell"></i> Alerts
+      </a>
+    </nav>
+    <div class="absolute bottom-4 p-4 w-full">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="themeToggle" class="sr-only peer">
+        <span class="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-indigo-600 transition-colors relative">
+          <span class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 peer-checked:left-5 transition-transform"></span>
+        </span>
+        <span>Dark Mode</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="md:ml-64 p-4 md:p-6 min-h-screen">
+    <!-- Mobile Menu Button and Summary Badge -->
+    <div class="flex justify-between items-center mb-6">
+      <button id="menuToggle" class="md:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-600 text-white rounded-full" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
+      <span id="summaryBadge" class="text-sm font-semibold text-gray-600 dark:text-gray-400">Loading summary...</span>
+    </div>
+
+    <!-- Price Ticker -->
+    <div class="mb-6 overflow-hidden bg-gray-200 dark:bg-gray-800 rounded-lg shadow">
+      <div id="priceTicker" class="flex animate-ticker whitespace-nowrap">
+        {% for coin in trending %}
+        <span class="px-4 py-2 text-sm">
+          <span class="text-capitalize">{{ coin.name }}</span>: ${{ "%.2f"|format(coin.current_price) }}
+          <span class="{% if coin.price_change_percentage_24h > 0 %}text-green-500{% else %}text-red-500{% endif %}">
+            {{ "%.2f"|format(coin.price_change_percentage_24h) }}%
+          </span>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="tab-content">
+      <!-- Dashboard Tab -->
+      <div class="tab-pane active" id="dashboard-tab">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+          <h2 class="text-2xl font-semibold flex items-center gap-2">
+            <i class="fas fa-fire"></i> Top Cryptocurrencies
+          </h2>
+          <div class="relative w-full md:w-96 mt-4 md:mt-0">
+            <input type="text" id="searchInput" class="w-full p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" placeholder="Search cryptocurrencies..." aria-label="Search cryptocurrencies">
+            <div id="searchResults" class="absolute w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-10">
+              <div id="searchResultsList" class="divide-y divide-gray-200 dark:divide-gray-700"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trending Section -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="trendingCoins">
+          {% for coin in trending %}
+          <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 shadow-lg hover:shadow-xl transition-all duration-300">
+            <img src="{{ coin.image }}" class="w-12 h-12 mx-auto mb-2 lazy-load" alt="{{ coin.name }}" loading="lazy">
+            <h3 class="text-lg font-semibold text-center text-capitalize">{{ coin.name }}</h3>
+            <p class="text-center text-gray-600 dark:text-gray-400">${{ "%.2f"|format(coin.current_price) }}</p>
+            <p class="text-center {% if coin.price_change_percentage_24h > 0 %}text-green-500{% else %}text-red-500{% endif %}">
+              {{ "%.2f"|format(coin.price_change_percentage_24h) }}%
+            </p>
+            <button class="mt-2 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors" onclick="addCoin('{{ coin.id }}')" aria-label="Add {{ coin.name }} to watchlist">
+              <i class="fas fa-plus-circle"></i> Watch
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Add Coin Form -->
+        <form id="addForm" class="flex flex-col sm:flex-row gap-2 mb-6">
+          <input type="text" name="symbol" id="coinSymbolInput" class="flex-1 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" placeholder="e.g. bitcoin" required aria-label="Coin symbol">
+          <button type="submit" class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+            <i class="fas fa-plus"></i> Add Coin
+            <span class="loading hidden animate-spin w-4 h-4 border-2 border-t-transparent border-white rounded-full"></span>
+          </button>
+        </form>
+
+        <!-- Watchlist Grid -->
+        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+          <i class="fas fa-star"></i> Your Watchlist
+        </h3>
+        <div id="coinGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {% for coin in coins %}
+          <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 shadow-lg hover:shadow-xl transition-all duration-300">
+            <h3 class="text-lg font-semibold text-capitalize">{{ coin.name }}</h3>
+            <p class="text-gray-600 dark:text-gray-400">{{ coin.symbol|upper }}</p>
+            <div class="flex gap-2 mt-2">
+              <button class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors" onclick="showChart('{{ coin.id }}')" aria-label="View chart for {{ coin.name }}">
+                <i class="fas fa-chart-line"></i> Chart
+              </button>
+              <button class="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors" onclick="removeCoin('{{ coin.id }}')" aria-label="Remove {{ coin.name }} from watchlist">
+                <i class="fas fa-trash"></i> Remove
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Portfolio Tab -->
+      <div class="tab-pane hidden" id="portfolio-tab">
+        <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <i class="fas fa-wallet"></i> Your Portfolio
+        </h2>
+        <!-- Portfolio Summary -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 shadow-lg">
+            <h3 class="text-lg font-semibold">Total Value</h3>
+            <p id="portfolioTotalValue" class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">$0.00</p>
+          </div>
+          <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 shadow-lg">
+            <h3 class="text-lg font-semibold">Total Profit/Loss</h3>
+            <p id="portfolioProfitLoss" class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">$0.00</p>
+          </div>
+        </div>
+
+        <!-- Add to Portfolio Form -->
+        <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 mb-6 shadow-lg">
+          <h3 class="text-lg font-semibold mb-4">Add Coin to Portfolio</h3>
+          <form id="portfolioForm" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div>
+              <label for="portfolioCoin" class="block text-sm font-medium">Coin</label>
+              <select id="portfolioCoin" class="w-full p-2 mt-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" required aria-label="Select coin"></select>
+            </div>
+            <div>
+              <label for="portfolioAmount" class="block text-sm font-medium">Amount</label>
+              <input type="number" id="portfolioAmount" step="0.000001" min="0" class="w-full p-2 mt-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" required aria-label="Amount">
+            </div>
+            <div>
+              <label for="portfolioPrice" class="block text-sm font-medium">Purchase Price ($)</label>
+              <input type="number" id="portfolioPrice" step="0.01" min="0" class="w-full p-2 mt-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" aria-label="Purchase price">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="w-full bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                Add
+                <span class="loading hidden animate-spin w-4 h-4 border-2 border-t-transparent border-white rounded-full"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Portfolio Table -->
+        <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 shadow-lg overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <th class="p-2">Coin</th>
+                <th class="p-2">Amount</th>
+                <th class="p-2">Purchase Price</th>
+                <th class="p-2">Current Price</th>
+                <th class="p-2">Current Value</th>
+                <th class="p-2">Profit/Loss</th>
+                <th class="p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="portfolioTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Compare Tab -->
+      <div class="tab-pane hidden" id="compare-tab">
+        <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <i class="fas fa-balance-scale"></i> Compare Cryptocurrencies
+        </h2>
+        <!-- Compare Form -->
+        <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 mb-6 shadow-lg">
+          <h3 class="text-lg font-semibold mb-4">Select Coins to Compare</h3>
+          <form id="compareForm" class="flex flex-col sm:flex-row gap-4">
+            <div id="compareSelectCoins" class="flex-1 flex flex-wrap gap-4"></div>
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+              Compare
+              <span class="loading hidden animate-spin w-4 h-4 border-2 border-t-transparent border-white rounded-full"></span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Compare Chart -->
+        <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 mb-6 shadow-lg">
+          <canvas id="compareChart" class="max-h-[400px]"></canvas>
+        </div>
+
+        <!-- Recent Comparisons -->
+        <h3 class="text-lg font-semibold mb-4">Recent Comparisons</h3>
+        <div id="recentComparisons" class="space-y-2"></div>
+      </div>
+
+      <!-- Alerts Tab -->
+      <div class="tab-pane hidden" id="alerts-tab">
+        <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2">
+          <i class="fas fa-bell"></i> Price Alerts
+        </h2>
+        <!-- Alerts Form -->
+        <div class="card bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 mb-6 shadow-lg">
+          <h3 class="text-lg font-semibold mb-4">Create Alert</h3>
+          <form id="alertForm" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div>
+              <label for="alertCoin" class="block text-sm font-medium">Coin</label>
+              <select id="alertCoin" class="w-full p-2 mt-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" required aria-label="Select coin for alert"></select>
+            </div>
+            <div>
+              <label for="alertHigh" class="block text-sm font-medium">High Price Alert ($)</label>
+              <input type="number" id="alertHigh" step="0.01" min="0" class="w-full p-2 mt-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" aria-label="High price alert">
+            </div>
+            <div>
+              <label for="alertLow" class="block text-sm font-medium">Low Price Alert ($)</label>
+              <input type="number" id="alertLow" step="0.01" min="0" class="w-full p-2 mt-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" aria-label="Low price alert">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="w-full bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                Set Alert
+                <span class="loading hidden animate-spin w-4 h-4 border-2 border-t-transparent border-white rounded-full"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Active Alerts -->
+        <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-4 shadow-lg overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-700">
+                <th class="p-2">Coin</th>
+                <th class="p-2">Low Alert</th>
+                <th class="p-2">High Alert</th>
+                <th class="p-2">Current Price</th>
+                <th class="p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="alertsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Modal -->
+  <div id="chartModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50" role="dialog" aria-labelledby="chartTitle">
+    <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-lg p-6 w-full max-w-4xl shadow-2xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="chartTitle" class="text-xl font-semibold"></h3>
+        <button id="closeChartModal" class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200" aria-label="Close modal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <button class="time-range-btn bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors" data-range="24h">24h</button>
+        <button class="time-range-btn bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors" data-range="7d">7d</button>
+        <button class="time-range-btn bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors" data-range="30d">30d</button>
+        <button class="time-range-btn bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors" data-range="90d">90d</button>
+        <button class="time-range-btn bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors active" data-range="all">All</button>
+      </div>
+      <canvas id="priceChart" class="max-h-[400px]"></canvas>
+      <div class="mt-4">
+        <h4 class="text-lg font-semibold mb-2">Notes</h4>
+        <textarea id="coinNotes" class="w-full p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500" rows="4" aria-label="Coin notes"></textarea>
+        <div class="flex justify-end mt-2">
+          <button id="saveNotes" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+            Save Notes
+            <span class="loading hidden animate-spin w-4 h-4 border-2 border-t-transparent border-white rounded-full"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 space-y-2 z-50"></div>
+
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'940d72e60b19ffa5',t:'MTc0NzQyNTQ5Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
