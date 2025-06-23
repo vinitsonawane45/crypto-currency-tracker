@@ -1,0 +1,936 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - CryptoLux{% endblock %}
+{% block content %}
+<div class="animate__animated animate__fadeIn">
+    <!-- Personalized Greeting -->
+    <h2 class="text-white mb-4">Hey, {{ user.username|capitalize }} 👋</h2>
+    
+    <!-- Main Heading -->
+    <h1 class="mb-5">
+        <i class="fas fa-chart-line me-3"></i>Market Dashboard
+    </h1>
+
+    <!-- Market Sentiment Indicator -->
+    <div class="card mb-5 shadow-sm animate__animated animate__fadeInUp animate__delay-1s">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-1 text-center">
+                    <i class="fas fa-thermometer-half fa-3x text-warning"></i>
+                </div>
+                <div class="col-md-11">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-robot me-2"></i>Market Sentiment
+                    </h5>
+                    <div id="market-sentiment" class="alert alert-info d-flex align-items-center" role="status">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        Fetching market sentiment...
+                    </div>
+                    <button id="retry-sentiment" class="btn btn-warning mt-2" style="display: none;" aria-label="Retry market sentiment">
+                        <i class="fas fa-redo-alt me-2"></i>Refresh Sentiment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Summary Card -->
+    <div class="card mb-5 shadow-sm animate__animated animate__fadeInUp animate__delay-2s">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-1 text-center">
+                    <i class="fas fa-globe-americas fa-3x text-primary"></i>
+                </div>
+                <div class="col-md-11">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-robot me-2"></i>AI Market Analysis
+                    </h5>
+                    <div id="market-summary" class="alert alert-info" role="status">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        Fetching intelligent market summary...
+                    </div>
+                    <button id="retry-summary" class="btn btn-warning mt-2" style="display: none;" aria-label="Retry market analysis">
+                        <i class="fas fa-redo-alt me-2"></i>Retry Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Prices Section -->
+    <div class="card mb-5 shadow-sm animate__animated animate__fadeInUp animate__delay-3s">
+        <div class="card-body">
+            <h3 class="card-title mb-4" style="background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fas fa-coins me-2"></i>Live Cryptocurrency Prices
+            </h3>
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <div class="input-group">
+                        <span class="input-group-text bg-primary text-white"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="coins-input" placeholder="Enter CoinGecko IDs (e.g., bitcoin,ethereum,ripple)" value="bitcoin,ethereum,ripple,litecoin,dogecoin" aria-label="CoinGecko IDs"/>
+                    </div>
+                    <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i>Use comma-separated IDs from CoinGecko.</small>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex flex-column flex-md-row gap-2">
+                        <button id="get-prices" class="btn btn-primary flex-fill">
+                            <i class="fas fa-sync-alt me-2"></i>Get Live Prices
+                        </button>
+                        <button id="export-prices" class="btn btn-success flex-fill">
+                            <i class="fas fa-download me-2"></i>Export Prices
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-hashtag me-2"></i>Coin</th>
+                            <th><i class="fas fa-dollar-sign me-2"></i>Price (USD)</th>
+                            <th><i class="fas fa-info-circle me-2"></i>Status</th>
+                            <th><i class="fas fa-clock me-2"></i>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prices-body">
+                        <tr>
+                            <td colspan="4" class="text-center p-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Movers Section -->
+    <div class="card mb-5 shadow-sm animate__animated animate__fadeInUp animate__delay-4s">
+        <div class="card-body">
+            <h3 class="card-title mb-4" style="background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fas fa-fire me-2"></i>Market Highlights
+            </h3>
+            <div id="market-movers" class="alert alert-info" role="status">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                Fetching market highlights...
+            </div>
+            <div id="market-movers-carousel" class="carousel slide" data-bs-ride="carousel" style="display: none;">
+                <div class="carousel-indicators">
+                    <button type="button" data-bs-target="#market-movers-carousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                    <button type="button" data-bs-target="#market-movers-carousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                    <button type="button" data-bs-target="#market-movers-carousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+                </div>
+                <div class="carousel-inner">
+                    <div class="carousel-item active" data-bs-interval="5000">
+                        <h4 class="text-center mb-3">Trending Coins (Top 5 by 24h Price Change)</h4>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle" id="trending-coins-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name (Symbol)</th>
+                                        <th>Price (USD)</th>
+                                        <th>24h Change (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="carousel-item" data-bs-interval="5000">
+                        <h4 class="text-center mb-3">Top Traded Coin (Highest 24h Volume)</h4>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle" id="top-traded-coins-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name (Symbol)</th>
+                                        <th>Price (USD)</th>
+                                        <th>24h Volume (USD)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="carousel-item" data-bs-interval="5000">
+                        <h4 class="text-center mb-3">Losers Coins (Top 5 by 24h Price Decline)</h4>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle" id="losers-coins-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name (Symbol)</th>
+                                        <th>Price (USD)</th>
+                                        <th>24h Change (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#market-movers-carousel" data-bs-slide="prev" aria-label="Previous slide">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#market-movers-carousel" data-bs-slide="next" aria-label="Next slide">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+            </div>
+            <button id="retry-movers" class="btn btn-warning mt-2" style="display: none;" aria-label="Retry market highlights">
+                <i class="fas fa-redo-alt me-2"></i>Retry Highlights
+            </button>
+        </div>
+    </div>
+
+    <!-- Market Trend Section -->
+    <div class="card mb-5 shadow-sm animate__animated animate__fadeInUp animate__delay-5s">
+        <div class="card-body">
+            <h3 class="card-title mb-4" style="background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fas fa-chart-area me-2"></i>Market Trend Analysis
+            </h3>
+            <div class="row g-3 align-items-center mb-4">
+                <div class="col-md-4">
+                    <label for="trend-coin-select" class="form-label">Select Cryptocurrency:</label>
+                    <select id="trend-coin-select" class="form-select" aria-label="Select cryptocurrency">
+                        <option value="bitcoin" selected>Bitcoin</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="ripple">Ripple</option>
+                        <option value="litecoin">Litecoin</option>
+                        <option value="dogecoin">Dogecoin</option>
+                    </select>
+                </div>
+                <div class="col-md-8 text-md-end">
+                    <label class="form-label d-block mb-2">Select Date Range:</label>
+                    <div class="btn-group" role="group" id="date-range-selector" aria-label="Date range selector">
+                        <button type="button" class="btn btn-outline-primary" data-days="7">7D</button>
+                        <button type="button" class="btn btn-outline-primary active" data-days="30">30D</button>
+                        <button type="button" class="btn btn-outline-primary" data-days="90">90D</button>
+                        <button type="button" class="btn btn-outline-primary" data-days="365">1Y</button>
+                    </div>
+                </div>
+            </div>
+            <div id="chart-container" style="position: relative; height: 45vh; width: 100%;">
+                <canvas id="trend-chart" aria-label="Market trend chart"></canvas>
+                <div id="chart-loader" class="chart-loader-overlay" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent News Snippets -->
+    <div class="card mb-5 shadow-sm animate__animated animate__fadeInUp animate__delay-6s">
+        <div class="card-body">
+            <h3 class="card-title mb-4" style="background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="fas fa-newspaper me-2"></i>Latest Crypto News
+            </h3>
+            <div id="news-last-updated" class="text-muted small mb-3" style="display: none;">
+                <i class="fas fa-clock me-1"></i>News last updated: <span id="last-updated-time"></span>
+            </div>
+            <div id="news-sentiment" class="alert alert-info mb-3" role="status" style="display: none;">
+                <i class="fas fa-thermometer-half me-2"></i>Average News Sentiment: <span id="sentiment-score"></span>
+            </div>
+            <div id="crypto-news" class="alert alert-info" role="status">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                Fetching latest news...
+            </div>
+            <div id="crypto-news-carousel" class="carousel slide" data-bs-ride="carousel" style="display: none;">
+                <div class="carousel-indicators">
+                    <!-- Dynamically populated -->
+                </div>
+                <div class="carousel-inner">
+                    <!-- Dynamically populated -->
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#crypto-news-carousel" data-bs-slide="prev" aria-label="Previous slide">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#crypto-news-carousel" data-bs-slide="next" aria-label="Next slide">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="/news" class="btn btn-primary">
+                    <i class="fas fa-newspaper me-2"></i>See More News
+                </a>
+                <button id="refresh-news" class="btn btn-info">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh News
+                </button>
+                <button id="retry-news" class="btn btn-warning" style="display: none;" aria-label="Retry crypto news">
+                    <i class="fas fa-redo-alt me-2"></i>Retry News
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row text-center animate__animated animate__fadeInUp animate__delay-7s">
+        <div class="col-md-4 mb-4">
+            <a href="/portfolio" class="card-link">
+                <div class="card h-100 quick-action-card">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <i class="fas fa-wallet fa-4x text-success mb-3"></i>
+                        <h5>Manage Portfolio</h5>
+                        <p class="text-muted">Track your crypto investments.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4 mb-4">
+            <a href="/compare" class="card-link">
+                <div class="card h-100 quick-action-card">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <i class="fas fa-balance-scale fa-4x text-warning mb-3"></i>
+                        <h5>Compare Coins</h5>
+                        <p class="text-muted">Compare prices side-by-side.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4 mb-4">
+            <a href="/alerts" class="card-link">
+                <div class="card h-100 quick-action-card">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <i class="fas fa-bell fa-4x text-danger mb-3"></i>
+                        <h5>Price Alerts</h5>
+                        <p class="text-muted">Set up price notifications.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS for this page -->
+<style>
+    .quick-action-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .quick-action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
+    }
+    a.card-link {
+        text-decoration: none;
+        color: inherit;
+    }
+    .chart-loader-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
+    }
+    .price-positive { color: #198754; }
+    .price-negative { color: #dc3545; }
+    .btn:hover {
+        background: var(--gold-gradient);
+        color: #000;
+    }
+    .carousel-inner {
+        min-height: 300px;
+    }
+    .carousel-item table {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .news-slide {
+        padding: 20px;
+        text-align: left;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .news-slide a {
+        font-size: 1.25rem;
+        line-height: 1.4;
+    }
+    .news-slide .text-muted {
+        font-size: 0.9rem;
+    }
+    @media (max-width: 768px) {
+        .card-body {
+            padding: 1.5rem;
+        }
+        h3.card-title {
+            font-size: 1.5rem;
+        }
+        .btn {
+            font-size: 0.9rem;
+            padding: 10px 20px;
+        }
+        .d-flex.flex-md-row {
+            flex-direction: column !important;
+        }
+        .d-flex.flex-md-row .btn {
+            width: 100%;
+        }
+        .carousel-inner {
+            min-height: 250px;
+        }
+        .news-slide a {
+            font-size: 1.1rem;
+        }
+    }
+</style>
+
+<!-- JS Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<!-- Custom JS for Dashboard -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let trendChart;
+    let priceUpdateInterval;
+    const lastPrices = {};
+    let lastNewsFetchTime = null;
+
+    // --- Helper Functions ---
+    const showToast = (message, type = 'info') => {
+        window.showToast(message, type); // Use base.html's showToast
+    };
+    const addLoadingAnimation = (button, originalText) => {
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Loading...`;
+        return () => {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        };
+    };
+    const formatCurrency = (value) => {
+        if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+        return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 });
+    };
+    const formatVolume = (value) => {
+        if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+        return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
+    const formatRelativeTime = (dateStr) => {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'Unknown time';
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHr = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHr / 24);
+        if (diffSec < 60) return `${diffSec} seconds ago`;
+        if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+        if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? 's' : ''} ago`;
+        if (diffDay < 7) return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
+        return date.toLocaleDateString();
+    };
+    const updateLastUpdatedTime = () => {
+        const lastUpdatedElement = document.getElementById('news-last-updated');
+        const lastUpdatedTimeElement = document.getElementById('last-updated-time');
+        if (lastNewsFetchTime) {
+            lastUpdatedTimeElement.textContent = formatRelativeTime(lastNewsFetchTime);
+            lastUpdatedElement.style.display = 'block';
+        } else {
+            lastUpdatedElement.style.display = 'none';
+        }
+    };
+    const handleFetchError = async (response, endpoint) => {
+        if (!response.ok) {
+            const statusText = response.statusText || 'Unknown error';
+            if (response.status === 404) {
+                throw new Error(`API endpoint ${endpoint} not found (404). Please check server routes.`);
+            } else if (response.status === 401 || response.status === 403) {
+                throw new Error(`Authentication failed for ${endpoint} (${response.status}). Please log in.`);
+            } else if (response.status === 429) {
+                throw new Error(`Rate limit exceeded for ${endpoint} (429). Please try again later.`);
+            } else if (response.status >= 500) {
+                throw new Error(`Server error for ${endpoint} (${response.status} ${statusText}). Try again later.`);
+            } else {
+                throw new Error(`Request failed for ${endpoint} (${response.status} ${statusText}).`);
+            }
+        }
+        const contentType = response.headers.get('Content-Type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Invalid response from ${endpoint}: Expected JSON but received ${contentType || 'unknown type'}. Response starts with: ${text.slice(0, 50)}...`);
+        }
+        return response.json();
+    };
+
+    // --- Fetch Functions ---
+    async function fetchMarketSentiment() {
+        const sentimentElement = document.getElementById('market-sentiment');
+        const retryButton = document.getElementById('retry-sentiment');
+        sentimentElement.innerHTML = `<div class="spinner-border spinner-border-sm me-2" role="status"><span class="visually-hidden">Loading...</span></div>Fetching market sentiment...`;
+        sentimentElement.setAttribute('role', 'status');
+        retryButton.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/market_sentiment');
+            const data = await handleFetchError(response, '/api/market_sentiment');
+            if (data.score !== undefined && data.sentiment) {
+                const emoji = data.score > 70 ? '🐂' : data.score < 30 ? '🐻' : '😐';
+                sentimentElement.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <span class="fs-3 me-3">${emoji}</span>
+                        <div>
+                            <strong>Market Sentiment: ${data.sentiment}</strong>
+                            <div class="progress mt-2">
+                                <div class="progress-bar ${data.score > 70 ? 'bg-success' : data.score < 30 ? 'bg-danger' : 'bg-warning'}" 
+                                     role="progressbar" 
+                                     style="width: ${data.score}%" 
+                                     aria-valuenow="${data.score}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                     ${data.score}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                sentimentElement.className = 'alert alert-success d-flex align-items-center';
+                sentimentElement.setAttribute('role', 'status');
+            } else {
+                throw new Error('Invalid data format: Missing score or sentiment.');
+            }
+        } catch (err) {
+            console.error('Market Sentiment Error:', err);
+            sentimentElement.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Failed to fetch sentiment: ${err.message}`;
+            sentimentElement.className = 'alert alert-warning';
+            sentimentElement.setAttribute('role', 'alert');
+            retryButton.style.display = 'block';
+            showToast(`Market Sentiment Error: ${err.message}`, 'danger');
+        }
+    }
+
+    async function fetchMarketMovers() {
+        const moversElement = document.getElementById('market-movers');
+        const carouselElement = document.getElementById('market-movers-carousel');
+        const retryButton = document.getElementById('retry-movers');
+        moversElement.innerHTML = `<div class="spinner-border spinner-border-sm me-2" role="status"><span class="visually-hidden">Loading...</span></div>Fetching market highlights...`;
+        moversElement.setAttribute('role', 'status');
+        carouselElement.style.display = 'none';
+        retryButton.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/market_movers');
+            const data = await handleFetchError(response, '/api/market_movers');
+            if (!data.trending || !data.top_traded || !data.losers || !Array.isArray(data.trending) || !Array.isArray(data.top_traded) || !Array.isArray(data.losers)) {
+                throw new Error('Invalid data format: Missing or invalid trending, top_traded, or losers arrays.');
+            }
+
+            const validateItem = (item) => item && typeof item === 'object' && item.name && item.symbol && typeof item.price === 'number';
+            if (!data.trending.every(validateItem) || !data.top_traded.every(validateItem) || !data.losers.every(validateItem)) {
+                throw new Error('Invalid data format: Some items are missing required fields (name, symbol, price).');
+            }
+
+            const trendingTbody = document.querySelector('#trending-coins-table tbody');
+            trendingTbody.innerHTML = data.trending.slice(0, 5).map(item => `
+                <tr>
+                    <td><strong>${item.name} (${item.symbol})</strong></td>
+                    <td>${formatCurrency(item.price)}</td>
+                    <td class="${item.change_24h >= 0 ? 'price-positive' : 'price-negative'}">${item.change_24h.toFixed(2)}%</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="text-center">No trending coins available.</td></tr>';
+
+            const topTradedTbody = document.querySelector('#top-traded-coins-table tbody');
+            topTradedTbody.innerHTML = data.top_traded.slice(0, 1).map(item => `
+                <tr>
+                    <td><strong>${item.name} (${item.symbol})</strong></td>
+                    <td>${formatCurrency(item.price)}</td>
+                    <td>${formatVolume(item.volume)}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="text-center">No top traded coins available.</td></tr>';
+
+            const losersTbody = document.querySelector('#losers-coins-table tbody');
+            losersTbody.innerHTML = data.losers.slice(0, 5).map(item => `
+                <tr>
+                    <td><strong>${item.name} (${item.symbol})</strong></td>
+                    <td>${formatCurrency(item.price)}</td>
+                    <td class="${item.change_24h >= 0 ? 'price-positive' : 'price-negative'}">${item.change_24h.toFixed(2)}%</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="text-center">No losers coins available.</td></tr>';
+
+            moversElement.style.display = 'none';
+            carouselElement.style.display = 'block';
+        } catch (err) {
+            console.error('Market Movers Error:', err);
+            moversElement.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Failed to fetch market highlights: ${err.message}`;
+            moversElement.className = 'alert alert-warning';
+            moversElement.setAttribute('role', 'alert');
+            retryButton.style.display = 'block';
+            showToast(`Market Highlights Error: ${err.message}`, 'danger');
+        }
+    }
+
+    async function fetchCryptoNews(forceRefresh = false) {
+        const newsElement = document.getElementById('crypto-news');
+        const carouselElement = document.getElementById('crypto-news-carousel');
+        const sentimentElement = document.getElementById('news-sentiment');
+        const sentimentScoreElement = document.getElementById('sentiment-score');
+        const retryButton = document.getElementById('retry-news');
+        const refreshButton = document.getElementById('refresh-news');
+        newsElement.innerHTML = `<div class="spinner-border spinner-border-sm me-2" role="status"><span class="visually-hidden">Loading...</span></div>Fetching latest news...`;
+        newsElement.setAttribute('role', 'status');
+        carouselElement.style.display = 'none';
+        sentimentElement.style.display = 'none';
+        retryButton.style.display = 'none';
+
+        try {
+            const url = forceRefresh ? '/api/news?force_refresh=true' : '/api/news';
+            const response = await fetch(url);
+            const data = await handleFetchError(response, '/api/news');
+            if (!Array.isArray(data) || !data.length) {
+                throw new Error('No news articles found.');
+            }
+
+            lastNewsFetchTime = new Date();
+            updateLastUpdatedTime();
+
+            const articles = data.slice(0, 3); // Take top 3 newest articles
+            if (!articles.length) {
+                newsElement.innerHTML = `<i class="fas fa-info-circle me-2"></i>No cryptocurrency news articles available. Try refreshing.`;
+                newsElement.className = 'alert alert-warning';
+                newsElement.setAttribute('role', 'alert');
+                retryButton.style.display = 'block';
+                sentimentElement.style.display = 'none';
+                showToast('No crypto news found. Please try refreshing.', 'warning');
+                return;
+            }
+
+            // Calculate average sentiment
+            const validScores = articles.map(item => item.sentiment_score).filter(score => typeof score === 'number' && !isNaN(score));
+            const avgSentiment = validScores.length ? (validScores.reduce((sum, score) => sum + score, 0) / validScores.length).toFixed(2) : 0;
+            const sentimentClass = avgSentiment > 0.3 ? 'alert-success' : avgSentiment < -0.3 ? 'alert-danger' : 'alert-warning';
+            const sentimentLabel = avgSentiment > 0.3 ? 'Positive' : avgSentiment < -0.3 ? 'Negative' : 'Neutral';
+
+            sentimentElement.innerHTML = `
+                <i class="fas fa-thermometer-half me-2"></i>
+                Average News Sentiment: <span id="sentiment-score">${sentimentLabel} (${avgSentiment})</span>
+            `;
+            sentimentElement.className = `alert ${sentimentClass} mb-3`;
+            sentimentElement.style.display = 'block';
+            sentimentElement.setAttribute('role', 'status');
+
+            // Populate carousel
+            const carouselInner = carouselElement.querySelector('.carousel-inner');
+            const carouselIndicators = carouselElement.querySelector('.carousel-indicators');
+            carouselInner.innerHTML = '';
+            carouselIndicators.innerHTML = '';
+
+            articles.forEach((item, index) => {
+                // Add carousel item
+                const carouselItem = document.createElement('div');
+                carouselItem.className = `carousel-item ${index === 0 ? 'active' : ''}`;
+                carouselItem.setAttribute('data-bs-interval', '5000');
+                carouselItem.innerHTML = `
+                    <div class="news-slide">
+                        <a href="${item.url || '#'}" target="_blank" class="text-primary text-decoration-none" aria-label="Read news: ${item.title}">
+                            <strong>${item.title}</strong>
+                        </a>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-newspaper me-1"></i>${item.source} | ${formatRelativeTime(item.published_at)}
+                            <span class="ms-2">Sentiment: ${item.sentiment_score.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+                carouselInner.appendChild(carouselItem);
+
+                // Add carousel indicator
+                const indicator = document.createElement('button');
+                indicator.type = 'button';
+                indicator.setAttribute('data-bs-target', '#crypto-news-carousel');
+                indicator.setAttribute('data-bs-slide-to', index);
+                indicator.className = index === 0 ? 'active' : '';
+                indicator.setAttribute('aria-current', index === 0 ? 'true' : 'false');
+                indicator.setAttribute('aria-label', `Slide ${index + 1}`);
+                carouselIndicators.appendChild(indicator);
+            });
+
+            newsElement.style.display = 'none';
+            carouselElement.style.display = 'block';
+        } catch (err) {
+            console.error('Crypto News Error:', err);
+            newsElement.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Failed to fetch news: ${err.message}`;
+            newsElement.className = 'alert alert-warning';
+            newsElement.setAttribute('role', 'alert');
+            retryButton.style.display = 'block';
+            sentimentElement.style.display = 'none';
+            showToast(`Crypto News Error: ${err.message}`, 'danger');
+        } finally {
+            if (forceRefresh) {
+                const stopLoading = addLoadingAnimation(refreshButton, `<i class="fas fa-sync-alt me-2"></i>Refresh News`);
+                stopLoading();
+            }
+        }
+    }
+
+    function exportPricesAsCSV() {
+        const tbody = document.getElementById('prices-body');
+        const rows = tbody.querySelectorAll('tr');
+        if (!rows.length || rows[0].textContent.includes('No data found')) {
+            showToast('No price data to export.', 'warning');
+            return;
+        }
+
+        const headers = ['Coin', 'Price (USD)', 'Status', 'Last Updated'];
+        const csvRows = [headers.join(',')];
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length === 4) {
+                const coin = cells[0].querySelector('strong').textContent;
+                const price = cells[1].textContent.replace('$', '').replace(',', '');
+                const status = cells[2].textContent;
+                const updated = cells[3].textContent;
+                csvRows.push([coin, price, status, updated].map(val => `"${val}"`).join(','));
+            }
+        });
+
+        const csv = csvRows.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'crypto_prices_' + new Date().toISOString().split('T')[0] + '.csv');
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('Price data exported successfully.', 'success');
+    }
+
+    async function fetchMarketSummary() {
+        const summaryElement = document.getElementById('market-summary');
+        const retryButton = document.getElementById('retry-summary');
+        summaryElement.innerHTML = `<div class="spinner-border spinner-border-sm me-2" role="status"><span class="visually-hidden">Loading...</span></div>Generating AI market analysis...`;
+        summaryElement.setAttribute('role', 'status');
+        retryButton.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/market_summary');
+            const data = await handleFetchError(response, '/api/market_summary');
+            if (data.summary) {
+                summaryElement.innerHTML = `<i class="fas fa-robot me-3"></i><div><strong>AI Market Insight:</strong><br>${data.summary}</div>`;
+                summaryElement.className = 'alert alert-success d-flex align-items-center';
+                summaryElement.setAttribute('role', 'status');
+            } else {
+                throw new Error(data.error || 'Invalid data format: Missing summary.');
+            }
+        } catch (err) {
+            console.error('Market Summary Error:', err);
+            summaryElement.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Failed to fetch market analysis: ${err.message}`;
+            summaryElement.className = 'alert alert-warning';
+            summaryElement.setAttribute('role', 'alert');
+            retryButton.style.display = 'block';
+            showToast(`Market Summary Error: ${err.message}`, 'danger');
+        }
+    }
+
+    async function fetchPrices() {
+        const input = document.getElementById('coins-input').value.trim();
+        const tbody = document.getElementById('prices-body');
+        if (!input) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">Please enter CoinGecko IDs.</td></tr>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/prices?coins=${encodeURIComponent(input)}`);
+            const data = await handleFetchError(response, '/api/prices');
+            if (data.error) throw new Error(data.error);
+
+            let rows = '';
+            const currentTime = new Date().toLocaleTimeString();
+            const coinIcons = { bitcoin: '₿', ethereum: 'Ξ', ripple: ' XRP', litecoin: 'Ł', dogecoin: 'Ð' };
+
+            for (const [coin, obj] of Object.entries(data)) {
+                const price = obj.usd;
+                const priceFormatted = price ? formatCurrency(price) : 'N/A';
+                const icon = coinIcons[coin] || '🪙';
+                
+                let priceClass = '';
+                if (lastPrices[coin] && price) {
+                    if (price > lastPrices[coin]) priceClass = 'price-positive';
+                    else if (price < lastPrices[coin]) priceClass = 'price-negative';
+                }
+                lastPrices[coin] = price;
+
+                rows += `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="fs-4 me-3">${icon}</span>
+                                <div>
+                                    <strong>${coin.charAt(0).toUpperCase() + coin.slice(1)}</strong>
+                                    <br><small class="text-muted">${coin.toUpperCase()}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="${priceClass}"><strong>${priceFormatted}</strong></td>
+                        <td><span class="badge bg-success">Live</span></td>
+                        <td><small class="text-muted">${currentTime}</small></td>
+                    </tr>`;
+            }
+            tbody.innerHTML = rows || '<tr><td colspan="4" class="text-center">No data found for the given IDs.</td></tr>';
+        } catch (err) {
+            console.error('Live Prices Error:', err);
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>${err.message}</td></tr>`;
+            showToast(`Live Prices Error: ${err.message}`, 'danger');
+        }
+    }
+
+    async function updateTrendChart() {
+        const selectedCoin = document.getElementById('trend-coin-select').value;
+        const selectedDays = document.querySelector('#date-range-selector .btn.active').dataset.days;
+        const chartLoader = document.getElementById('chart-loader');
+        chartLoader.style.display = 'flex';
+
+        try {
+            const response = await fetch(`/api/historical_prices?coin=${selectedCoin}&days=${selectedDays}`);
+            const data = await handleFetchError(response, '/api/historical_prices');
+            if (data.error) throw new Error(data.error);
+
+            const ctx = document.getElementById('trend-chart').getContext('2d');
+            const coinName = selectedCoin.charAt(0).toUpperCase() + selectedCoin.slice(1);
+
+            const chartData = {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: `${coinName} Price (USD)`,
+                        data: data.prices,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                    },
+                    {
+                        label: '7-Day Moving Average',
+                        data: data.moving_average,
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderDash: [5, 5],
+                        tension: 0.2,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                    }
+                ]
+            };
+            
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 800, easing: 'easeOutQuart' },
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'day', tooltipFormat: 'MMM dd, yyyy' },
+                        grid: { display: false },
+                        ticks: { autoSkip: true, maxTicksLimit: 10, color: '#6c757d' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Price (USD)', color: '#6c757d' },
+                        ticks: { 
+                            color: '#6c757d',
+                            callback: (value) => '$' + value.toLocaleString() 
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, color: '#212529' } },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { weight: 'bold' },
+                        bodyFont: { size: 14 },
+                        padding: 10,
+                        callbacks: {
+                            label: (context) => {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += formatCurrency(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            };
+
+            if (trendChart) {
+                trendChart.data = chartData;
+                trendChart.options = chartOptions;
+                trendChart.update();
+            } else {
+                trendChart = new Chart(ctx, { type: 'line', data: chartData, options: chartOptions });
+            }
+        } catch (err) {
+            console.error('Trend Chart Error:', err);
+            showToast(`Trend Chart Error: ${err.message}`, 'danger');
+        } finally {
+            chartLoader.style.display = 'none';
+        }
+    }
+
+    // --- Event Listeners ---
+    document.getElementById('get-prices').addEventListener('click', () => {
+        const button = document.getElementById('get-prices');
+        const stopLoading = addLoadingAnimation(button, `<i class="fas fa-sync-alt me-2"></i>Get Live Prices`);
+        fetchPrices().finally(stopLoading);
+    });
+
+    document.getElementById('export-prices').addEventListener('click', exportPricesAsCSV);
+    document.getElementById('retry-sentiment').addEventListener('click', fetchMarketSentiment);
+    document.getElementById('retry-summary').addEventListener('click', fetchMarketSummary);
+    document.getElementById('retry-movers').addEventListener('click', fetchMarketMovers);
+    document.getElementById('retry-news').addEventListener('click', () => fetchCryptoNews());
+    document.getElementById('refresh-news').addEventListener('click', () => {
+        const button = document.getElementById('refresh-news');
+        const stopLoading = addLoadingAnimation(button, `<i class="fas fa-sync-alt me-2"></i>Refresh News`);
+        fetchCryptoNews(true).finally(stopLoading);
+    });
+    document.getElementById('trend-coin-select').addEventListener('change', updateTrendChart);
+    
+    document.getElementById('date-range-selector').addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            document.querySelectorAll('#date-range-selector button').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            updateTrendChart();
+        }
+    });
+
+    // --- Initial Load ---
+    function initialize() {
+        fetchMarketSentiment();
+        fetchMarketSummary();
+        fetchPrices();
+        fetchMarketMovers();
+        fetchCryptoNews();
+        updateTrendChart();
+        priceUpdateInterval = setInterval(fetchPrices, 60000);
+        setInterval(updateLastUpdatedTime, 60000); // Update last updated time every minute
+    }
+
+    initialize();
+    
+    // Clean up on page leave
+    window.addEventListener('beforeunload', () => {
+        if (priceUpdateInterval) clearInterval(priceUpdateInterval);
+        if (trendChart) trendChart.destroy();
+    });
+});
+</script>
+{% endblock %}

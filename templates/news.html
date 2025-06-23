@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}CryptoLux - News{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="text-center mb-4">Cryptocurrency News</h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="btn-group" role="group" aria-label="News categories">
+                <button type="button" class="btn btn-outline-light active" data-category="all">All</button>
+                <button type="button" class="btn btn-outline-light" data-category="bitcoin">Bitcoin</button>
+                <button type="button" class="btn btn-outline-light" data-category="ethereum">Ethereum</button>
+                <button type="button" class="btn btn-outline-light" data-category="altcoins">Altcoins</button>
+                <button type="button" class="btn btn-outline-light" data-category="blockchain">Blockchain</button>
+                <button type="button" class="btn btn-outline-light" data-category="regulation">Regulation</button>
+            </div>
+            <button type="button" class="btn btn-primary" id="refresh-news"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+        <p id="last-updated" class="text-muted small text-center"></p>
+        <div id="news-container" class="row">
+            <div class="col-12 text-center">
+                <div class="alert alert-info">
+                    <div class="spinner-border spinner-border-sm text-light me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    Fetching latest news...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-img-top {
+        max-height: 200px;
+        object-fit: cover;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+    .card-title a {
+        font-size: 1.25rem;
+        line-height: 1.4;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .card-title a:hover {
+        text-decoration: underline;
+    }
+    .card-text {
+        font-size: 0.95rem;
+        color: #6c757d;
+    }
+    .card-text small {
+        font-size: 0.85rem;
+    }
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+    }
+    @media (max-width: 768px) {
+        .card-title a {
+            font-size: 1.1rem;
+        }
+        .card-text {
+            font-size: 0.9rem;
+        }
+        .card-img-top {
+            max-height: 150px;
+        }
+    }
+</style>
+
+<script>
+    const categoryMap = {
+        "all": "cryptocurrency",
+        "bitcoin": "bitcoin",
+        "ethereum": "ethereum",
+        "altcoins": "altcoin OR altcoins",
+        "blockchain": "blockchain",
+        "regulation": "cryptocurrency regulation"
+    };
+    const NEWS_CACHE_KEY = 'news_cache';
+    const CACHE_EXPIRATION = 15 * 60 * 1000; // 15 minutes
+    let isFetching = false;
+    let currentCategory = "all";
+
+    // Helper Functions
+    function formatRelativeTime(dateStr) {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'Unknown time';
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHr = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHr / 24);
+        if (diffSec < 60) return `${diffSec} seconds ago`;
+        if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+        if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? 's' : ''} ago`;
+        if (diffDay < 7) return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
+        return date.toLocaleDateString();
+    }
+
+    function addLoadingAnimation(button, originalText) {
+        button.disabled = true;
+        button.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Loading...`;
+        return () => {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        };
+    }
+
+    function getCachedNews(category) {
+        const cached = localStorage.getItem(`${NEWS_CACHE_KEY}_${category}`);
+        if (cached) {
+            const data = JSON.parse(cached);
+            if (Date.now() - data.timestamp < CACHE_EXPIRATION) {
+                return data;
+            }
+        }
+        return null;
+    }
+
+    function setCachedNews(category, articles) {
+        const data = {
+            timestamp: Date.now(),
+            articles: articles
+        };
+        localStorage.setItem(`${NEWS_CACHE_KEY}_${category}`, JSON.stringify(data));
+    }
+
+    async function fetchNews(category, forceRefresh = false) {
+        if (isFetching) return;
+        isFetching = true;
+        const container = document.getElementById('news-container');
+        container.innerHTML = `
+            <div class="col-12 text-center">
+                <div class="alert alert-info">
+                    <div class="spinner-border spinner-border-sm text-light me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    Fetching latest news...
+                </div>
+            </div>`;
+        container.className = 'row';
+
+        try {
+            if (!forceRefresh) {
+                const cachedData = getCachedNews(category);
+                if (cachedData) {
+                    displayNews(cachedData.articles, new Date(cachedData.timestamp));
+                    isFetching = false;
+                    return;
+                }
+            }
+            const query = categoryMap[category];
+            const url = forceRefresh ? `/api/news?query=${encodeURIComponent(query)}&force_refresh=true` : `/api/news?query=${encodeURIComponent(query)}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Failed to fetch news (Status: ${response.status})`);
+            }
+            const articles = await response.json();
+            if (!Array.isArray(articles) || articles.length === 0) {
+                throw new Error('No news articles found.');
+            }
+            const topArticles = articles.slice(0, 20); // Take top 20 newest articles
+            setCachedNews(category, topArticles);
+            displayNews(topArticles, new Date());
+        } catch (error) {
+            container.innerHTML = `<div class="col-12"><div class="alert alert-danger">Error fetching news: ${error.message}. Please try again later.</div></div>`;
+            container.className = 'row';
+        } finally {
+            isFetching = false;
+        }
+    }
+
+    function displayNews(articles, timestamp) {
+        const container = document.getElementById('news-container');
+        container.innerHTML = '';
+        container.className = 'row';
+
+        if (articles.length === 0) {
+            container.innerHTML = '<div class="col-12"><div class="alert alert-warning">No news articles found for this category.</div></div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        articles.forEach(article => {
+            const sentiment = article.sentiment_score !== undefined ? `Sentiment: ${article.sentiment_score.toFixed(2)}` : '';
+            const card = document.createElement('div');
+            card.className = 'col-12 col-md-6 col-lg-4 mb-4';
+            card.innerHTML = `
+                <div class="card h-100">
+                    ${article.urlToImage ? `<img src="${article.urlToImage}" class="card-img-top" alt="${article.title}" loading="lazy">` : ''}
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="${article.url}" target="_blank" aria-label="Read news: ${article.title}">${article.title}</a>
+                        </h5>
+                        <p class="card-text">${article.description || 'No description available.'}</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="fas fa-newspaper me-1"></i>${article.source?.name || article.source || 'Unknown Source'} | ${formatRelativeTime(article.publishedAt || article.published_at)}
+                                ${sentiment ? `<span class="ms-2">${sentiment}</span>` : ''}
+                            </small>
+                        </p>
+                        <a href="${article.url}" target="_blank" class="btn btn-primary">Read more</a>
+                    </div>
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+        container.appendChild(fragment);
+        document.getElementById('last-updated').textContent = timestamp ? `Last updated: ${formatRelativeTime(timestamp)}` : '';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('.btn-group button[data-category="all"]').classList.add('active');
+
+        document.querySelectorAll('.btn-group button').forEach(button => {
+            button.addEventListener('click', function() {
+                if (isFetching) return;
+                document.querySelectorAll('.btn-group button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                currentCategory = this.getAttribute('data-category');
+                fetchNews(currentCategory);
+            });
+        });
+
+        document.getElementById('refresh-news').addEventListener('click', function() {
+            if (isFetching) return;
+            const button = this;
+            const stopLoading = addLoadingAnimation(button, '<i class="fas fa-sync-alt"></i> Refresh');
+            localStorage.removeItem(`${NEWS_CACHE_KEY}_${currentCategory}`);
+            fetchNews(currentCategory, true).finally(stopLoading);
+        });
+
+        fetchNews(currentCategory);
+    });
+</script>
+{% endblock %}

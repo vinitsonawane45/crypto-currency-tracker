@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block title %}Settings - CryptoLux{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg">
+            <div class="card-body p-5">
+                <h5 class="card-title text-center mb-4>
+                    <i class="fas fa-cog me-2"></i>Settings
+                </h5>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="mb-4">
+                    <h5>Two-Factor Authentication</h5>
+                    {% if user.tfa_secret %}
+                        <p>2FA is enabled.</p>
+                        <button class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#disable2FAModal">
+                            <i class="fas fa-unlock me-2"></i>Disable 2FA
+                        </button>
+                    {% else %}
+                        <p>2FA is not enabled.</p>
+                        <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#enable2FAModal">
+                            <i class="fas fa-shield-alt me-2"></i>Enable 2FA
+                        </button>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <h5>API Keys</h5>
+                    {% if user.api_keys %}
+                        <ul class="list-group mb-3">
+                            {% for key in user.api_keys %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Key created on {{ key.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+                                    <button class="btn btn-danger btn-sm revoke-api-key-btn" data-index="{{ loop.index0 }}">Revoke</button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No API keys generated.</p>
+                    {% endif %}
+                    <button class="btn btn-primary w-100" id="generateApiKey">Generate New API Key</button>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Account Deletion</h5>
+                    <button class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Delete Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enable 2FA Modal -->
+<div class="modal fade" id="enable2FAModal" tabindex="-1" aria-labelledby="enable2FAModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="enable2FAModalLabel">Enable Two-Factor Authentication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Scan the QR code below with your authenticator app (e.g., Google Authenticator) or enter the secret manually.</p>
+                <div id="tfa-qr-code" class="text-center"></div>
+                <p id="tfa-secret" class="text-center mb-3"></p>
+                <form id="verify-2fa-form">
+                    <div class="mb-3">
+                        <label for="tfaCode" class="form-label">Enter 6-digit 2FA Code</label>
+                        <input type="text" class="form-control" id="tfaCode" required pattern="\d{6}" placeholder="123456">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Verify and Enable</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Disable 2FA Modal -->
+<div class="modal fade" id="disable2FAModal" tabindex="-1" aria-labelledby="disable2FAModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="disable2FAModalLabel">Disable Two-Factor Authentication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Enter your current 2FA code to disable two-factor authentication.</p>
+                <form id="disable-2fa-form">
+                    <div class="mb-3">
+                        <label for="disableTfaCode" class="form-label">Enter 6-digit 2FA Code</label>
+                        <input type="text" class="form-control" id="disableTfaCode" required pattern="\d{6}" placeholder="123456">
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">Disable 2FA</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Confirmation Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteAccountModalLabel">Confirm Account Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete your account? This action is irreversible and will remove all your data, including portfolio and alerts.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Delete Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById("enable2FAModal").addEventListener('shown.bs.modal', async () => {
+    console.log("Fetching 2FA setup...");
+    try {
+        const response = await fetch("/api/profile/2fa/setup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+        const data = await response.json();
+        console.log("2FA setup response:", data);
+        if (data.status === "success") {
+            document.getElementById("tfa-qr-code").innerHTML = `<img src="${data.qr_code}" alt="2FA QR Code" class="img-fluid">`;
+            document.getElementById("tfa-secret").textContent = `Secret: ${data.secret}`;
+        } else {
+            showToast(data.error || "Failed to setup 2FA.", "danger");
+            bootstrap.Modal.getInstance(document.getElementById("enable2FAModal")).hide();
+        }
+    } catch (error) {
+        console.error("2FA setup error:", error);
+        showToast("Error setting up 2FA.", "danger");
+        bootstrap.Modal.getInstance(document.getElementById("enable2FAModal")).hide();
+    }
+});
+
+document.getElementById("verify-2fa-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const resetButton = addLoadingAnimation(button);
+    const tfaCode = document.getElementById("tfaCode").value.trim();
+    if (!/^\d{6}$/.test(tfaCode)) {
+        showToast("Please enter a valid 6-digit 2FA code.", "danger");
+        resetButton();
+        return;
+    }
+    const payload = { tfa_code: tfaCode };
+    console.log("Sending 2FA verify payload:", payload);
+    try {
+        const response = await fetch("/api/profile/2fa/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        console.log("2FA verify response:", data);
+        resetButton();
+        if (data.status === "success") {
+            showToast("2FA enabled successfully!", "success");
+            bootstrap.Modal.getInstance(document.getElementById("enable2FAModal")).hide();
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to verify 2FA code.", "danger");
+        }
+    } catch (error) {
+        console.error("2FA verify error:", error);
+        resetButton();
+        showToast("Error verifying 2FA code.", "danger");
+    }
+});
+
+document.getElementById("disable-2fa-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const resetButton = addLoadingAnimation(button);
+    const tfaCode = document.getElementById("disableTfaCode").value.trim();
+    if (!/^\d{6}$/.test(tfaCode)) {
+        showToast("Please enter a valid 6-digit 2FA code.", "danger");
+        resetButton();
+        return;
+    }
+    const payload = { tfa_code: tfaCode };
+    console.log("Sending 2FA disable payload:", payload);
+    try {
+        const response = await fetch("/api/profile/2fa/disable", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        console.log("2FA disable response:", data);
+        resetButton();
+        if (data.status === "success") {
+            showToast("2FA disabled successfully!", "success");
+            bootstrap.Modal.getInstance(document.getElementById("disable2FAModal")).hide();
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to disable 2FA.", "danger");
+        }
+    } catch (error) {
+        console.error("2FA disable error:", error);
+        resetButton();
+        showToast("Error disabling 2FA.", "danger");
+    }
+});
+
+document.getElementById("generateApiKey").addEventListener("click", async () => {
+    const button = document.getElementById("generateApiKey");
+    const resetButton = addLoadingAnimation(button);
+    try {
+        const response = await fetch("/api/profile/api_key", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+        const data = await response.json();
+        resetButton();
+        if (data.status === "success") {
+            showToast(`New API Key: ${data.api_key} (Copy this, it won't be shown again!)`, "success");
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to generate API key.", "danger");
+        }
+    } catch (error) {
+        resetButton();
+        showToast("Error generating API key.", "danger");
+    }
+});
+
+document.querySelectorAll(".revoke-api-key-btn").forEach(button => {
+    button.addEventListener("click", async () => {
+        const index = button.dataset.index;
+        const resetButton = addLoadingAnimation(button);
+        try {
+            const response = await fetch(`/api/profile/api_key/${index}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" }
+            });
+            const data = await response.json();
+            resetButton();
+            if (data.status === "success") {
+                showToast("API key revoked!", "success");
+                location.reload();
+            } else {
+                showToast(data.error || "Failed to revoke API key.", "danger");
+            }
+        } catch (error) {
+            resetButton();
+            showToast("Error revoking API key.", "danger");
+        }
+    });
+});
+
+document.getElementById("confirmDelete").addEventListener("click", async () => {
+    const button = document.getElementById("confirmDelete");
+    const resetButton = addLoadingAnimation(button);
+    try {
+        const response = await fetch("/api/profile/delete", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        });
+        const data = await response.json();
+        resetButton();
+        if (data.status === "success") {
+            showToast("Account deleted successfully!", "success");
+            window.location.href = "{{ url_for('login_page') }}";
+        } else {
+            showToast(data.error || "Failed to delete account.", "danger");
+            bootstrap.Modal.getInstance(document.getElementById("deleteAccountModal")).hide();
+        }
+    } catch (error) {
+        resetButton();
+        showToast("Error deleting account.", "danger");
+        bootstrap.Modal.getInstance(document.getElementById("deleteAccountModal")).hide();
+    }
+});
+</script>
+{% endblock %}

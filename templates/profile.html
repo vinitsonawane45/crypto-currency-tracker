@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Profile - CryptoLux{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg">
+            <div class="card-body p-5">
+                <h1 class="card-title text-center mb-4">
+                    <i class="fas fa-user-circle me-2"></i>Profile
+                </h1>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="text-center mb-4">
+                    <a href="{{ url_for('profile_page') }}" class="user-badge mb-2" style="width: 80px; height: 80px;">
+                        {% if user.profile_picture %}
+                            <img src="{{ user.profile_picture }}" alt="{{ user.username }}'s profile picture">
+                        {% else %}
+                            <span style="font-size: 2rem;">{{ user.username[:2] | upper }}</span>
+                        {% endif %}
+                    </a>
+                    <form id="profile-picture-form" enctype="multipart/form-data" class="mt-2">
+                        <input type="file" class="form-control mb-2" id="profilePicture" name="file" accept="image/png,image/jpeg,image/jpg">
+                        <button type="submit" class="btn btn-primary">Upload Picture</button>
+                    </form>
+                    <h4 class="mt-3">{{ user.username | capitalize }}</h4>
+                    <form id="username-form" class="input-group mt-2">
+                        <input type="text" class="form-control" id="newUsername" placeholder="New username" required>
+                        <button type="submit" class="btn btn-primary">Update Username</button>
+                    </form>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Favorite Coin</h5>
+                    {% if user.favorite_coin %}
+                        <p>
+                            {{ user.favorite_coin | capitalize }}
+                            {% if prices[user.favorite_coin] %}
+                                - <span class="price-{{ 'positive' if prices[user.favorite_coin].usd_24h_change >= 0 else 'negative' }}">
+                                    {{ prices[user.favorite_coin].usd | format_currency }}
+                                    ({{ '%+.2f' % prices[user.favorite_coin].usd_24h_change }}%)
+                                </span>
+                            {% else %}
+                                - Price unavailable
+                            {% endif %}
+                        </p>
+                    {% else %}
+                        <p>No favorite coin set.</p>
+                    {% endif %}
+                    <form id="favorite-coin-form" class="input-group position-relative">
+                        <input type="text" class="form-control" id="favoriteCoin" placeholder="Enter coin ID (e.g., bitcoin)" required autocomplete="off">
+                        <div id="favorite-coin-suggestions" class="dropdown-menu w-100" style="display: none; max-height: 200px; overflow-y: auto;"></div>
+                        <button type="submit" class="btn btn-primary">Set Favorite</button>
+                    </form>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Watchlist</h5>
+                    {% if user.watchlist %}
+                        <ul class="list-group mb-3">
+                            {% for coin in user.watchlist %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ coin | capitalize }}
+                                    <div>
+                                        {% if prices[coin] %}
+                                            <span class="price-{{ 'positive' if prices[coin].usd_24h_change >= 0 else 'negative' }}">
+                                                {{ prices[coin].usd | format_currency }}
+                                                ({{ '%+.2f' % prices[coin].usd_24h_change }}%)
+                                            </span>
+                                        {% else %}
+                                            <span>Price unavailable</span>
+                                        {% endif %}
+                                        <button class="btn btn-danger btn-sm remove-coin-btn ms-2" data-coin="{{ coin }}">Remove</button>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No coins in watchlist.</p>
+                    {% endif %}
+                    <form id="watchlist-form" class="input-group position-relative">
+                        <input type="text" class="form-control" id="watchlistCoin" placeholder="Enter coin ID (e.g., bitcoin)" required autocomplete="off">
+                        <div id="watchlist-coin-suggestions" class="dropdown-menu w-100" style="display: none; max-height: 200px; overflow-y: auto;"></div>
+                        <button type="submit" class="btn btn-primary">Add to Watchlist</button>
+                    </form>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Recent Activity</h5>
+                    {% if activities %}
+                        <ul class="list-group">
+                            {% for activity in activities %}
+                                <li class="list-group-item">
+                                    <strong>{{ activity.action.replace('_', ' ') | capitalize }}</strong>
+                                    - {{ activity.timestamp }}
+                                    {% if activity.details %}
+                                        <ul>
+                                            {% for key, value in activity.details.items() %}
+                                                <li>{{ key.replace('_', ' ') | capitalize }}: {{ value }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent activity.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Setup autocomplete
+function setupAutocomplete(inputId, suggestionsId) {
+    const input = document.getElementById(inputId);
+    const suggestionsContainer = document.getElementById(suggestionsId);
+
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            suggestionsContainer.style.display = 'none';
+        }
+    });
+
+    const fetchSuggestions = debounce(async (query) => {
+        if (!query) {
+            suggestionsContainer.style.display = 'none';
+            return;
+        }
+        try {
+            const response = await fetch(`/api/coins?q=${encodeURIComponent(query)}`);
+            const coins = await response.json();
+            suggestionsContainer.innerHTML = '';
+            if (response.ok && coins.length > 0) {
+                coins.forEach(coin => {
+                    const suggestion = document.createElement('a');
+                    suggestion.className = 'dropdown-item';
+                    suggestion.href = '#';
+                    suggestion.innerHTML = `<strong>${coin.id}</strong> (${coin.name}, ${coin.symbol.toUpperCase()})`;
+                    suggestion.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        input.value = coin.id;
+                        suggestionsContainer.style.display = 'none';
+                    });
+                    suggestionsContainer.appendChild(suggestion);
+                });
+                suggestionsContainer.style.display = 'block';
+            } else {
+                const noResults = document.createElement('div');
+                noResults.className = 'dropdown-item text-muted';
+                noResults.textContent = 'No coins found';
+                suggestionsContainer.appendChild(noResults);
+                suggestionsContainer.style.display = 'block';
+            }
+        } catch (error) {
+            suggestionsContainer.style.display = 'none';
+            showToast('Error fetching coin suggestions.', 'danger');
+        }
+    }, 300);
+
+    input.addEventListener('input', () => fetchSuggestions(input.value.trim().toLowerCase()));
+    input.addEventListener('focus', () => {
+        if (input.value) fetchSuggestions(input.value.trim().toLowerCase());
+    });
+}
+
+setupAutocomplete('favoriteCoin', 'favorite-coin-suggestions');
+setupAutocomplete('watchlistCoin', 'watchlist-coin-suggestions');
+
+document.getElementById("profile-picture-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const resetButton = addLoadingAnimation(button);
+    const formData = new FormData(e.target);
+    try {
+        const response = await fetch("/api/profile/picture", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+        resetButton();
+        if (data.status === "success") {
+            showToast("Profile picture updated!", "success");
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to update profile picture.", "danger");
+        }
+    } catch (error) {
+        resetButton();
+        showToast("Error updating profile picture.", "danger");
+    }
+});
+
+document.getElementById("username-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const resetButton = addLoadingAnimation(button);
+    const newUsername = document.getElementById("newUsername").value.trim().toLowerCase();
+    try {
+        const response = await fetch("/api/profile/username", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: newUsername })
+        });
+        const data = await response.json();
+        resetButton();
+        if (data.status === "success") {
+            showToast("Username updated!", "success");
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to update username.", "danger");
+        }
+    } catch (error) {
+        resetButton();
+        showToast("Error updating username.", "danger");
+    }
+});
+
+document.getElementById("favorite-coin-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const resetButton = addLoadingAnimation(button);
+    const coin = document.getElementById("favoriteCoin").value.trim().toLowerCase();
+    try {
+        const response = await fetch("/api/favorite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ coin })
+        });
+        const data = await response.json();
+        resetButton();
+        if (data.status === "success") {
+            showToast("Favorite coin updated!", "success");
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to update favorite coin.", "danger");
+        }
+    } catch (error) {
+        resetButton();
+        showToast("Error updating favorite coin.", "danger");
+    }
+});
+
+document.getElementById("watchlist-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const resetButton = addLoadingAnimation(button);
+    const coin = document.getElementById("watchlistCoin").value.trim().toLowerCase();
+    try {
+        const response = await fetch("/api/watchlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ coin })
+        });
+        const data = await response.json();
+        resetButton();
+        if (data.status === "success") {
+            showToast("Coin added to watchlist!", "success");
+            location.reload();
+        } else {
+            showToast(data.error || "Failed to add coin to watchlist.", "danger");
+        }
+    } catch (error) {
+        resetButton();
+        showToast("Error adding coin to watchlist.", "danger");
+    }
+});
+
+document.querySelectorAll(".remove-coin-btn").forEach(button => {
+    button.addEventListener("click", async () => {
+        const coin = button.dataset.coin;
+        const resetButton = addLoadingAnimation(button);
+        try {
+            const response = await fetch("/api/watchlist", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ coin })
+            });
+            const data = await response.json();
+            resetButton();
+            if (data.status === "success") {
+                showToast("Coin removed from watchlist!", "success");
+                location.reload();
+            } else {
+                showToast(data.error || "Failed to remove coin.", "danger");
+            }
+        } catch (error) {
+            resetButton();
+            showToast("Error removing coin.", "danger");
+        }
+    });
+});
+</script>
+<style>
+    .price-positive { color: green; }
+    .price-negative { color: red; }
+</style>
+{% endblock %}
