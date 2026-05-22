@@ -4,7 +4,7 @@ A full-stack cryptocurrency tracking web application built with **Flask** and **
 
 ---
 
-## 🚀 Features
+## 🚀 Feature
 
 - **Live Crypto Prices** — Fetches real-time prices from the CoinGecko API for 10 major coins (BTC, ETH, XRP, LTC, DOGE, BNB, ADA, SOL, DOT, LINK).
 - **Market Movers** — Displays top trending coins, top traded coins by volume, and biggest losers in 24 hours.
