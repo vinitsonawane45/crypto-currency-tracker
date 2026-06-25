@@ -1,4 +1,4 @@
-# 🪙 CryptoLux — Cryptocurrency Tracker
+# 🪙 CryptoLux — Cryptocurrency Price Tracker
 
 A full-stack cryptocurrency tracking web application built with **Flask** and **MongoDB**. CryptoLux provides real-time coin prices, portfolio management, price alerts, news sentiment analysis, an AI-powered chatbot, and robust user authentication — all in one place.
 
