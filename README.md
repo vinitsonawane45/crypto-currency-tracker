@@ -1,10 +1,10 @@
-# 🪙 CryptoLux — Cryptocurrency Price Tracker
+# 🪙 CryptoLux — Cryptocurrency Tracker
 
 A full-stack cryptocurrency tracking web application built with **Flask** and **MongoDB**. CryptoLux provides real-time coin prices, portfolio management, price alerts, news sentiment analysis, an AI-powered chatbot, and robust user authentication — all in one place.
 
 ---
 
-## 🚀 Features
+## 🚀 Feature
 
 - **Live Crypto Prices** — Fetches real-time prices from the CoinGecko API for 10 major coins (BTC, ETH, XRP, LTC, DOGE, BNB, ADA, SOL, DOT, LINK).
 - **Market Movers** — Displays top trending coins, top traded coins by volume, and biggest losers in 24 hours.
