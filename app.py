@@ -197,7 +197,7 @@ def get_coins_list():
         logger.info("Using cached coins list")
         return cache["coins"]
     return fetch_coingecko_coins_list()
-
+    
 def get_live_prices(coin_ids, vs_currency="usd"):
     if not coin_ids:
         logger.warning("No coin IDs provided to get_live_prices")
